@@ -1,6 +1,6 @@
 # Data sources
 
-Checked live on 2026-10-31 (first full refresh: 83 seconds, 935 requests). Each refresh
+Checked live on 2026-10-31. On GitHub Actions a full refresh takes about 4–6 minutes and ~2,300 requests. Each refresh
 records what worked in the snapshot's `sources` list, and the app footer shows it.
 Real captured responses are kept in `tests/fixtures/live-*.json` and tested.
 
@@ -34,6 +34,6 @@ Real captured responses are kept in `tests/fixtures/live-*.json` and tested.
   For the next 10 days the refresh also asks for afternoon/evening departures
   separately, so Friday-evening flights are not missed.
 - **Terms of use:** these are the same requests a person's browser makes on the
-  airlines' sites. The refresh stays polite: a hard request budget, at most 4
-  requests in parallel, caching, and no booking automation. If a site starts refusing,
+  airlines' sites. The refresh stays polite: a hard request budget, at most 5
+  requests in parallel per website, caching, and no booking automation. If a site starts refusing,
   that source is marked failed and the app keeps working with the rest.
