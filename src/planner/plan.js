@@ -90,7 +90,7 @@ export function indexSnapshot(snapshot, data = STATIC_DATA) {
       if (!a || !b || a.country !== b.country || a.lat == null || b.lat == null) continue;
       const km = haversineKm(a, b);
       if (km > dest.AUTO_LINK.maxKm) continue;
-      const l = { minutes: dest.AUTO_LINK.minutes(km), eur: dest.AUTO_LINK.eur(km), operator: 'Bus / train (rough estimate)', est: true, rough: true, km: Math.round(km) };
+      const l = { minutes: dest.AUTO_LINK.minutes(km), eur: dest.AUTO_LINK.eur(km), operator: 'Bus / Zug (grob geschätzt)', est: true, rough: true, km: Math.round(km) };
       if (!links.get(codes[i])?.has(codes[j])) addLink(codes[i], codes[j], { ...l, a: codes[i], b: codes[j] });
       if (!links.get(codes[j])?.has(codes[i])) addLink(codes[j], codes[i], { ...l, a: codes[j], b: codes[i] });
     }
@@ -156,6 +156,12 @@ export function plan(snapshot, query, data = STATIC_DATA) {
   const graph = buildGraph(data, q.home, party, q.timeValuePerHour, { maxWalkMin: q.maxWalkMin });
   const homeNode = homeNodeId(q.home);
   const minStay = q.minStayHours * 60;
+  // optional: only places at least `minKm` away from home (as the crow flies)
+  const farEnough = (code) => {
+    if (!q.minKm) return true;
+    const p = idx.places[code];
+    return !p || p.lat == null || haversineKm(home, p) >= q.minKm;
+  };
 
   // departure points: airports + Salzburg Hbf (for bus/train-only trips)
   const H = { ...data.HUBS };
@@ -183,7 +189,7 @@ export function plan(snapshot, query, data = STATIC_DATA) {
   }
 
   // ---------------------------------------------------------------- anchors: where your car / bike waits (or none)
-  const nodeName = (id) => (id === homeNode ? 'Home' : data.NODES[id]?.name || id);
+  const nodeName = (id) => (id === homeNode ? 'Zuhause' : data.NODES[id]?.name || id);
   const anchors = [{ id: 'public', vehicle: null, start: homeNode, driveMin: 0, km: 0, walkMin: 0, park: null }];
   if (q.car) {
     for (const [id, cp] of Object.entries(data.CARPARKS)) {
@@ -199,7 +205,7 @@ export function plan(snapshot, query, data = STATIC_DATA) {
       const km = haversineKm(home, p);
       if (km > data.MICRO.maxBikeKm) continue;
       anchors.push({ id: `bike@${node}`, vehicle: 'bike', start: node, driveMin: bikeMinutes(km, data.MICRO), km: Math.round(km * 10) / 10, walkMin: 2,
-        park: { name: `Bike parking at ${nodeName(node)}`, tariff: { perDay: 0 }, node } });
+        park: { name: `Radabstellplatz ${nodeName(node)}`, tariff: { perDay: 0 }, node } });
     }
   }
   const vehicleCost = (a) => (a.vehicle === 'car' ? fuelCost(a.km, car) : 0);
@@ -226,8 +232,8 @@ export function plan(snapshot, query, data = STATIC_DATA) {
     const isCar = a.vehicle === 'car';
     const startPlace = data.NODES[a.start];
     return { kind: isCar ? 'drive' : 'bike', from: fromLabel, to: toLabel, dep, arr: dep + a.driveMin, approxTime: true, minutes: a.driveMin,
-      eur: vehicleCost(a), est: isCar, km: a.km, operator: isCar ? 'Your car' : 'Your bike',
-      note: isCar ? `${a.km} km · fuel ≈ ${car.litresPer100km} l/100 km × €${car.fuelEurPerLitre.toFixed(2)}` : `${a.km} km`,
+      eur: vehicleCost(a), est: isCar, km: a.km, operator: isCar ? 'Dein Auto' : 'Dein Rad',
+      note: isCar ? `${a.km} km · Sprit ≈ ${car.litresPer100km} l/100 km × €${car.fuelEurPerLitre.toFixed(2)}` : `${a.km} km`,
       maps: { from: outbound ? home : startPlace, to: outbound ? startPlace : home, mode: isCar ? 'driving' : 'bicycling' } };
   }
 
@@ -341,7 +347,7 @@ export function plan(snapshot, query, data = STATIC_DATA) {
     for (const f of byFrom.get(hub) || []) {
       if (hubSet.has(f.to)) continue;
       if (f.dep < leaveAfter || f.dep > leaveBefore + 10 * 60) continue;
-      if (!matchesDestination(f.to, q.destinations, idx)) continue;
+      if (!matchesDestination(f.to, q.destinations, idx) || !farEnough(f.to)) continue;
       const o = bestOut(hub, f.dep);
       if (!o.size) continue;
       let minOut = Infinity;
@@ -396,10 +402,10 @@ export function plan(snapshot, query, data = STATIC_DATA) {
       const p = idx.places[key];
       if (!p) continue;
       routes.set(key, { km: r.km, min: r.min, tolls: STATIC_GROUND.estimateCarTolls(p.country, r.km), parkPerDay: STATIC_GROUND.DEFAULT_CITY_PARKING,
-        note: 'tolls and parking roughly estimated', rough: true });
+        note: 'Maut und Parken grob geschätzt', rough: true });
     }
     for (const [key, cr] of routes) {
-      if (!matchesDestination(key, q.destinations, idx)) continue;
+      if (!matchesDestination(key, q.destinations, idx) || !farEnough(key)) continue;
       const leave = leaveAfter;
       const arrive = leave + cr.min;
       const backLeave = backBy - cr.min;
@@ -478,14 +484,14 @@ export function plan(snapshot, query, data = STATIC_DATA) {
       const stops = r.via ? r.via.split(',').filter(Boolean) : [];
       const multi = String(r.carrier || '').includes('+');
       const notes = [];
-      if (stops.length) notes.push(`${stops.length} stop${stops.length > 1 ? 's' : ''} via ${stops.join(', ')}`);
-      if (stops.length && (multi || r.src === 'kiwi')) notes.push('self-transfer: separate tickets, collect bags and check in again, missed connections are at your risk unless booked with Kiwi.com Guarantee');
-      notes.push(bagFee ? `incl. ≈ €${bagFee} bag per person` : 'small under-seat bag included');
+      if (stops.length) notes.push(`${stops.length} Umstieg${stops.length > 1 ? 'e' : ''} in ${stops.join(', ')}`);
+      if (stops.length && (multi || r.src === 'kiwi')) notes.push('Selbst umsteigen: getrennte Tickets, Gepäck abholen und neu einchecken. Verpasster Anschluss = dein Risiko, außer mit Kiwi.com-Garantie');
+      notes.push(bagFee ? `inkl. ≈ €${bagFee} Gepäck pro Person` : 'kleine Tasche unterm Sitz inklusive');
       return { kind: 'flight', from: placeName(r.from), to: placeName(r.to), fromCode: r.from, toCode: r.to, dep: r.dep, arr: r.arr, tzFrom, tzTo,
         minutes: r.arr - r.dep, eur, live: r.live, operator: String(r.carrier || '').split('+').map(carrierName).join(' + '), number: r.number,
         stops: stops.length, via: stops, bookWith: r.src === 'kiwi' ? 'Kiwi.com' : r.src === 'wizz' ? 'Wizz Air' : 'Ryanair', approxArr: r.src === 'wizz',
         url: r.src === 'kiwi' ? kiwiUrl(r.from, r.to, dateLocal, n) : r.src === 'wizz' ? wizzUrl(r.from, r.to, dateLocal, n) : bookingUrl(r, n, dateLocal),
-        note: [...notes, ...(r.src === 'wizz' ? ['arrival time estimated (Wizz only publishes departures)'] : [])].join(' · ') };
+        note: [...notes, ...(r.src === 'wizz' ? ['Ankunft geschätzt (Wizz nennt nur Abflugzeiten)'] : [])].join(' · ') };
     }
     // other buses/trains on the same route within ±4 h: cheapest per operator
     const others = new Map();
@@ -498,7 +504,7 @@ export function plan(snapshot, query, data = STATIC_DATA) {
     const priced = r.fare ? priceFare(r.fare, party) : null;
     return { kind: r.mode, from: placeName(r.from), to: placeName(r.to), fromCode: r.from, toCode: r.to, dep: r.dep, arr: r.arr, tzFrom, tzTo, approxTime: !!r.approx,
       minutes: r.arr - r.dep, eur, live: !!r.live && !r.est, est: !!r.est, operator: r.operator, url: r.url, free: priced?.free,
-      note: r.est ? 'typical timetable and price, check exact times' : undefined,
+      note: r.est ? 'typischer Fahrplan und Preis, genaue Zeiten vor dem Buchen prüfen' : undefined,
       rideshare: STATIC_GROUND.blablacarUrl(cityLabel(r.from), cityLabel(r.to), dateLocal, n),
       alts: [...others.values()].sort((a, b) => a.eur - b.eur).slice(0, 4) };
   }
@@ -508,14 +514,14 @@ export function plan(snapshot, query, data = STATIC_DATA) {
     const city = cityOf(c.key, idx);
     const maps = (from, to) => ({ from, to, mode: 'driving' });
     const legs = [
-      { kind: 'drive', from: 'Home', to: p.name || city, dep: c.leave, arr: c.arrive, approxTime: true, minutes: c.cr.min, eur: c.fuel, est: true, km: c.cr.km,
-        operator: 'Your car', note: `${c.cr.km} km · fuel ≈ ${car.litresPer100km} l/100 km × €${car.fuelEurPerLitre.toFixed(2)}`, maps: maps(home, p) },
-      { kind: 'park', from: `Parking in ${city}`, to: '', dep: c.arrive, arr: c.arrive, approxTime: true, minutes: 0, eur: c.parkingEur, est: true,
-        operator: 'Parking', note: [c.cr.note && !/toll|vignette/i.test(c.cr.note) ? c.cr.note : null, `≈ €${c.cr.parkPerDay}/day × ${c.parkDays}`].filter(Boolean).join(' · ') },
+      { kind: 'drive', from: 'Zuhause', to: p.name || city, dep: c.leave, arr: c.arrive, approxTime: true, minutes: c.cr.min, eur: c.fuel, est: true, km: c.cr.km,
+        operator: 'Dein Auto', note: `${c.cr.km} km · Sprit ≈ ${car.litresPer100km} l/100 km × €${car.fuelEurPerLitre.toFixed(2)}`, maps: maps(home, p) },
+      { kind: 'park', from: `Parken in ${city}`, to: '', dep: c.arrive, arr: c.arrive, approxTime: true, minutes: 0, eur: c.parkingEur, est: true,
+        operator: 'Parken', note: [c.cr.note && !/toll|vignet|maut/i.test(c.cr.note) ? c.cr.note : null, `≈ €${c.cr.parkPerDay}/Tag × ${c.parkDays}`].filter(Boolean).join(' · ') },
     ];
-    if (c.cr.tolls) legs.push({ kind: 'toll', from: '', to: '', eur: c.cr.tolls, est: true, minutes: 0, note: c.cr.note || 'Tolls / vignettes' });
-    legs.push({ kind: 'drive', from: p.name || city, to: 'Home', dep: c.backLeave, arr: backBy, approxTime: true, minutes: c.cr.min, eur: c.fuel, est: true, km: c.cr.km,
-      operator: 'Your car', note: `${c.cr.km} km`, maps: maps(p, home) });
+    if (c.cr.tolls) legs.push({ kind: 'toll', from: '', to: '', eur: c.cr.tolls, est: true, minutes: 0, note: c.cr.note || 'Maut / Vignetten' });
+    legs.push({ kind: 'drive', from: p.name || city, to: 'Zuhause', dep: c.backLeave, arr: backBy, approxTime: true, minutes: c.cr.min, eur: c.fuel, est: true, km: c.cr.km,
+      operator: 'Dein Auto', note: `${c.cr.km} km`, maps: maps(p, home) });
     return {
       id: `car-${c.key}`, total: c.total, perPerson: round2(c.total / n), travelers: n, mode: 'car', vehicle: 'car', city,
       country: p.countryName || '', countryCode: p.country || '',
@@ -530,12 +536,12 @@ export function plan(snapshot, query, data = STATIC_DATA) {
     const legs = [];
     let t = o.leave;
     if (a.vehicle) {
-      legs.push(vehicleLeg(a, 'Home', a.park.name, t, true));
+      legs.push(vehicleLeg(a, 'Zuhause', a.park.name, t, true));
       t += a.driveMin;
       if (a.vehicle === 'car') {
         legs.push({ kind: 'park', from: a.park.name, to: a.park.name, dep: t, arr: t + a.walkMin, approxTime: true, minutes: a.walkMin,
-          eur: c.parking, est: !!a.park.est, note: [a.park.note, `parked ≈ ${Math.ceil((b.parkEnd - o.parkStart) / 1440)} day(s)`].filter(Boolean).join(' · '),
-          url: a.park.src, operator: 'Parking' });
+          eur: c.parking, est: !!a.park.est, note: [a.park.note, `geparkt ≈ ${Math.ceil((b.parkEnd - o.parkStart) / 1440)} Tag(e)`].filter(Boolean).join(' · '),
+          url: a.park.src, operator: 'Parken' });
         if (a.park.toll) legs.push({ kind: 'toll', from: '', to: '', eur: a.park.toll.eur, est: true, note: a.park.toll.note, minutes: 0 });
       }
       t += a.walkMin;
@@ -550,7 +556,7 @@ export function plan(snapshot, query, data = STATIC_DATA) {
     if (z.link) {
       const start = f.arr + (EXIT[f.mode] ?? 25);
       legs.push({ kind: 'transfer', from: placeName(f.to), to: placeName(z.R), minutes: z.minutes, eur: round2(z.eur * n), est: true, rough: !!z.link.rough,
-        operator: z.link.operator, url: z.link.url, note: 'Any time during your stay', dep: start, arr: start + z.minutes, approxTime: true,
+        operator: z.link.operator, url: z.link.url, note: 'Jederzeit während des Aufenthalts', dep: start, arr: start + z.minutes, approxTime: true,
         tz: idx.places[f.to]?.tz, maps: { from: idx.places[f.to], to: idx.places[z.R], mode: 'transit' },
         rideshare: STATIC_GROUND.blablacarUrl(cityLabel(f.to), cityLabel(z.R), utcMinToLocal(start, idx.places[f.to]?.tz || 'UTC').date, n) });
     }
@@ -563,7 +569,7 @@ export function plan(snapshot, query, data = STATIC_DATA) {
       tb = bt.arr;
     }
     legs.push(...staticLegs(b.p, tb));
-    if (a.vehicle) legs.push(vehicleLeg(a, a.park.name, 'Home', b.home - a.driveMin, false));
+    if (a.vehicle) legs.push(vehicleLeg(a, a.park.name, 'Zuhause', b.home - a.driveMin, false));
 
     const estEur = legs.filter((l) => l.est).reduce((s, l) => s + (l.eur || 0), 0);
     const dest = cityOf(f.to, idx);
@@ -580,7 +586,7 @@ export function plan(snapshot, query, data = STATIC_DATA) {
       const k = x.a.vehicle || 'public';
       if (!othersByVehicle.has(k) || x.total < othersByVehicle.get(k).total) othersByVehicle.set(k, x);
     }
-    const alts = [...othersByVehicle.entries()].map(([k, x]) => ({ vehicle: k, car: k === 'car', total: x.total, via: x.a.park?.name || 'public transport' })).sort((x, y) => x.total - y.total);
+    const alts = [...othersByVehicle.entries()].map(([k, x]) => ({ vehicle: k, car: k === 'car', total: x.total, via: x.a.park?.name || 'Öffis' })).sort((x, y) => x.total - y.total);
     const p0 = idx.places[f.to] || {};
     return {
       id: `${f.uid}-${r.uid}-${a.id}`,

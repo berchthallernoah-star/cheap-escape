@@ -96,7 +96,7 @@ test('car vs. no car: the other mode is shown as an alternative', () => {
   const s = snapshot([OUT, BACK_LHR_MUC]);
   const r = plan(s, { ...W, travelers: [NONE], car: true });
   assert.equal(r.trips[0].total, 95.19, 'public both ways is cheapest here');
-  assert.deepEqual(r.trips[0].alt, { vehicle: 'car', car: true, total: 105.85, via: 'Freilassing station parking' });
+  assert.deepEqual(r.trips[0].alt, { vehicle: 'car', car: true, total: 105.85, via: 'Parken Bahnhof Freilassing' });
   assert.equal(plan(s, { ...W, travelers: [NONE], car: false }).trips[0].alt, null);
 });
 
@@ -107,7 +107,7 @@ test('car wins for 4 people to Munich: park & shuttle beats 2 Bayern-Tickets', (
   const t = r.trips[0];
   assert.equal(t.total, 218.32); // 4×(20+20) + fuel 2×17.16 + 3 days × €8
   assert.equal(t.legs[0].kind, 'drive');
-  assert.equal(t.legs[1].from, 'Off-airport park & shuttle near MUC');
+  assert.equal(t.legs[1].from, 'Parken mit Shuttle nahe Flughafen München');
   assert.equal(t.legs.at(-1).kind, 'drive');
   assert.equal(t.alt.car, false);
   assert.equal(t.alt.total, 304.8);
@@ -233,7 +233,7 @@ test('other airlines: Ryanair out to Stansted, home from Birmingham with a Kiwi 
   assert.equal(back.bookWith, 'Kiwi.com');
   assert.equal(back.stops, 1);
   assert.ok(back.url.startsWith('https://www.kiwi.com/en/search/results/BHX/VIE/2026-11-08'));
-  assert.match(back.note, /self-transfer/);
+  assert.match(back.note, /Selbst umsteigen/);
 });
 
 test('alert lines work for bus, train and car trips too', async () => {
@@ -252,4 +252,12 @@ test('too cheap to be true: a fare far below the route normal is flagged, promos
   const a = findAnomalies(snapshot(rows));
   assert.equal(a.length, 1);
   assert.deepEqual([a[0].from, a[0].to, a[0].eur, a[0].normal, a[0].level], ['SZG', 'STN', 9.99, 90, 'mistake']);
+});
+
+test('minimum distance leaves out nearby cities (Munich, Linz) but keeps far ones', () => {
+  const all = plan(snapshot([]), { ...WEEKEND, travelers: [{ name: 'Me', cards: [] }], car: false, limit: 60 });
+  const far = plan(snapshot([]), { ...WEEKEND, travelers: [{ name: 'Me', cards: [] }], car: false, limit: 60, minKm: 200 });
+  assert.ok(all.trips.some((t) => ['Munich', 'Linz'].includes(t.city)));
+  assert.ok(far.trips.length > 0);
+  assert.ok(far.trips.every((t) => !['Munich', 'Linz', 'Innsbruck'].includes(t.city)));
 });

@@ -1,6 +1,6 @@
 // REFRESH JOB: collects a fresh fare snapshot and writes dist/snapshot.json.
 //
-//   node src/fetch/snapshot.js [--days 45] [--budget 5000] [--minutes 8] [--out dist/snapshot.json]
+//   node src/fetch/snapshot.js [--days 60] [--budget 5000] [--minutes 8] [--out dist/snapshot.json]
 //
 // Every source is optional: if one is down or changed, the others still produce a
 // snapshot, and the snapshot's `sources` list says exactly what worked.
@@ -29,7 +29,7 @@ function arg(name, def) {
   return i > 0 ? process.argv[i + 1] : def;
 }
 
-export async function buildSnapshot({ days = 45, budget = 5000, minutes = 8, log = console.log, now = Date.now(), cacheDir, minGapMs, kiwiRegions = 20 } = {}) {
+export async function buildSnapshot({ days = 60, nearDays = 35, budget = 5000, minutes = 8, log = console.log, now = Date.now(), cacheDir, minGapMs, kiwiRegions = 20 } = {}) {
   const http = createClient({ budget, log, deadline: Date.now() + minutes * 60000, ...(cacheDir ? { cacheDir } : {}), ...(minGapMs != null ? { minGapMs } : {}) });
   const today = todayIn('Europe/Vienna', now);
   const lastDay = addDays(today, days);
@@ -41,10 +41,10 @@ export async function buildSnapshot({ days = 45, budget = 5000, minutes = 8, log
   );
   const hubCodes = Object.keys(HUBS);
 
-  // days the weekend searches look at (next 3 weeks + the next 2 days for spontaneous trips)
+  // days the weekend searches look at (next 5 weeks + the next 2 days for spontaneous trips)
   const outDays = [];
   const backDays = [];
-  for (let i = 0; i <= Math.min(days, 21); i++) {
+  for (let i = 0; i <= Math.min(days, nearDays); i++) {
     const d = addDays(today, i);
     const dow = dowOf(d);
     if (i <= 1 || [4, 5, 6].includes(dow)) outDays.push(d);
@@ -162,7 +162,7 @@ export async function buildSnapshot({ days = 45, budget = 5000, minutes = 8, log
     const names = [...new Set(FLIX_PAIRS.flatMap((p) => [p.aName, p.bName]))];
     await settle(names, async (n) => { const c = await flix.resolveCity(http, n); if (c) ids.set(n, c.id); });
     const flixDays = [];
-    for (let i = 0; i <= Math.min(days, 21); i++) {
+    for (let i = 0; i <= Math.min(days, nearDays); i++) {
       const d = addDays(today, i);
       if (i <= 7 || [4, 5, 6, 0, 1].includes(dowOf(d))) flixDays.push(d);
     }
@@ -245,8 +245,8 @@ export async function buildSnapshot({ days = 45, budget = 5000, minutes = 8, log
       await settle(nearKeys, async (key) => { const r = await flix.resolveCity(http, places[key].city, 'en'); if (r) extraIds.set(key, r.id); });
       const wkOut = outDays.filter((d) => [4, 5, 6].includes(dowOf(d)));
       const wkBack = backDays.filter((d) => [6, 0, 1].includes(dowOf(d)));
-      const fri = wkOut.filter((d) => dowOf(d) === 5).slice(0, 2);
-      const sun = wkBack.filter((d) => dowOf(d) === 0).slice(0, 2);
+      const fri = wkOut.filter((d) => dowOf(d) === 5).slice(0, 4);
+      const sun = wkBack.filter((d) => dowOf(d) === 0).slice(0, 4);
       const jobs = [];
       for (const [key, id] of ids) {
         for (const d of wkOut) jobs.push({ from: salzburg.id, to: id, d, na: 'sbg-hbf', nb: key });
@@ -315,17 +315,17 @@ export async function buildSnapshot({ days = 45, budget = 5000, minutes = 8, log
     }
     for (const c of Object.values(GROUND_CITIES)) if (!best.has(`${c.city}|${c.countryName}`)) best.set(`${c.city}|${c.countryName}`, { key: c.city, city: c.city, countryName: c.countryName, eur: 0 });
     const list = [...best.values()].sort((a, b) => a.eur - b.eur).slice(0, 90);
-    stayCities.push(...list.filter((c) => c.eur > 0).slice(0, 30));
+    stayCities.push(...list.filter((c) => c.eur > 0).slice(0, 25));
     const r = await fetchHostels(http, list);
     Object.assign(hostels, r.hostels);
     if (!Object.keys(hostels).length) throw new Error(`no prices (${r.failed} failed)`);
     return { meta: { cities: Object.keys(hostels).length, failed: r.failed } };
   });
 
-  // ---------------------------------------------------------------- cheap hotels + hostels for the next two weekends (trivago)
+  // ---------------------------------------------------------------- cheap hotels + hostels for the next four weekends (trivago)
   const stays = {};
   await source('trivago', async () => {
-    const fridays = outDays.filter((d) => dowOf(d) === 5).slice(0, 2);
+    const fridays = outDays.filter((d) => dowOf(d) === 5).slice(0, 4);
     const sid = await trivago.openSession();
     const jobs = stayCities.flatMap((c) => fridays.map((fri) => [c, fri, addDays(fri, 2)]));
     let ok = 0;
@@ -354,7 +354,11 @@ export async function buildSnapshot({ days = 45, budget = 5000, minutes = 8, log
   }
   const cleanFlights = [...seen.values()].sort((a, b) => a[2] - b[2]);
 
-  // only ship airports we actually use
+  // only ship airports we actually use (some sources pad names with spaces or line breaks)
+  for (const a of Object.values(airports)) {
+    if (!a) continue;
+    for (const k of ['name', 'city', 'countryName']) if (typeof a[k] === 'string') a[k] = a[k].replace(/\s+/g, ' ').trim();
+  }
   const used = new Set([...hubCodes, ...cleanFlights.flatMap((f) => [f[0], f[1]])]);
   const shipAirports = Object.fromEntries([...used].filter((c) => airports[c]).map((c) => [c, airports[c]]));
 
@@ -382,7 +386,7 @@ export async function buildSnapshot({ days = 45, budget = 5000, minutes = 8, log
 
 if (process.argv[1]?.endsWith('src/fetch/snapshot.js')) {
   const out = arg('out', 'dist/snapshot.json');
-  const snap = await buildSnapshot({ days: Number(arg('days', 45)), budget: Number(arg('budget', 5000)), minutes: Number(arg('minutes', 8)) });
+  const snap = await buildSnapshot({ days: Number(arg('days', 60)), budget: Number(arg('budget', 6000)), minutes: Number(arg('minutes', 12)) });
   await mkdir(dirname(out), { recursive: true });
   await writeFile(out, JSON.stringify(snap));
   console.log(`\nsnapshot: ${snap.flights.length} flights, ${snap.ground.length} bus/train trips, ${snap.timed.length} airport buses, ${snap.requests} requests`);

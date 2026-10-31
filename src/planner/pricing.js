@@ -35,7 +35,7 @@ export function priceFare(fare, travelers) {
           left -= k;
         }
         eur += cost;
-        notes.push(`Bayern-Ticket for ${n}`);
+        notes.push(`Bayern-Ticket für ${n}`);
       }
     } else {
       for (const t of payers) {

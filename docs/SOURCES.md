@@ -6,7 +6,7 @@ Real captured responses are kept in `tests/fixtures/live-*.json` and tested.
 
 | Source | What it gives | Status (live check 2026-10-31) |
 |---|---|---|
-| Ryanair fare finder | One-way fares + times, every route from/to the 8 home airports, 45 days | ✓ works: 8,312 fares, 0 errors |
+| Ryanair fare finder | One-way fares + times, every route from/to the 8 home airports, 60 days (whole months) | ✓ works: 8,312 fares, 0 errors |
 | Kiwi.com search | All airlines incl. combinations of different airlines (self-transfer): out from each home airport to anywhere, home from the 20 cheapest destination regions (e.g. London + Birmingham) | ✓ works: 13,857 itineraries. **Kiwi sells nothing to or from Russia** (0 results, also via Istanbul/Belgrade/Yerevan) |
 | Wizz Air timetable | Daily cheapest fare per route (BTS, FMM, NUE …), departure times; arrival estimated from distance | ✓ works: 2,410 fares |
 | Hostelworld city pages | Cheapest bed per city (page title), ~80 cities | ✓ works. Some lead prices under €3 look like display errors |

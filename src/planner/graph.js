@@ -37,7 +37,7 @@ function microEdges(places, micro, bikeShare) {
       const km = haversineKm(a, b);
       const walk = walkMinutes(km, micro);
       if (walk <= micro.maxWalkShownMin) {
-        out.push({ a: ids[i], b: ids[j], minutes: Math.max(1, walk), mode: 'walk', operator: 'On foot', fare: [], km: Math.round(km * 10) / 10, walk: true });
+        out.push({ a: ids[i], b: ids[j], minutes: Math.max(1, walk), mode: 'walk', operator: 'Zu Fuß', fare: [], km: Math.round(km * 10) / 10, walk: true });
       }
       for (const s of bikeShare || []) {
         if (haversineKm(a, s.center) > s.radiusKm || haversineKm(b, s.center) > s.radiusKm) continue;

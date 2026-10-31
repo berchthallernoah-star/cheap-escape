@@ -6,11 +6,23 @@ und Preise, die nach einem Fehler aussehen.
 
 **Deine App:** https://berchthallernoah-star.github.io/cheap-escape/ (mit Passwort geschützt)
 
+## So benutzt du sie
+
+- **Wochenende:** oben die Leiste mit allen Wochenenden, jedes mit dem billigsten Ziel. Antippen = Reisen dafür.
+  „Los ab“ / „Wieder daheim bis“ darunter (z. B. Do ab 17 Uhr, Mo Nacht zurück).
+- **Ein paar Tage:** Hin- und Rückdatum, dazu „± 1–3 Tage flexibel“. Darunter alle anderen Starttage mit Preis
+  für gleich lange Reisen, der billigste ist gelb.
+- **Anderswann billiger:** Ist ein anderes Wochenende oder ein anderer Starttag klar billiger, erscheint ein Tipp.
+- **Wohin:** leer = überall; deutsch oder englisch („Mailand“, „Italien“, „London“, Flughafencode). Entfernung
+  (ab 200 km ist Standard, sonst ist München mit dem Bus immer das Billigste).
+- **Flug / Bus / Zug / Auto:** Filter über der Liste, jeweils mit dem billigsten Preis.
+- **Preisfehler** und **Betten** haben eigene Reiter.
+
 ## So funktioniert es
 
 - **Automatisch alle 3 Stunden** holt GitHub die aktuellen Preise. Kostenlos, ohne Claude, ohne Tokens.
 - **Sofort aktualisieren:** in der GitHub-App oder auf github.com → dieses Repository → *Actions* →
-  *Refresh prices* → **Run workflow**. Oder in der App auf „Update now“ tippen.
+  *Refresh prices* → **Run workflow**. Oder in der App auf „Jetzt aktualisieren“ tippen.
 - **Gesperrt mit deinem Passwort** (Repository-Secret `PAGE_PASSWORD`): Die Seite wird mit AES-256
   verschlüsselt, bevor sie online geht. Ohne Passwort sieht man nur Zeichensalat, auch wer den Link kennt.
   Passwort ändern: *Settings → Secrets and variables → Actions → PAGE_PASSWORD* bearbeiten, dann
@@ -23,12 +35,12 @@ und Preise, die nach einem Fehler aussehen.
 
 | Bereich | Quelle | live? |
 |---|---|---|
-| Flüge | Ryanair-Fare-Finder, Wizz Air Preiskalender, Kiwi.com (alle Airlines, auch kombiniert) | live |
-| Bus | Flixbus (zu den Flughäfen und zu ~90 Städten) | live |
+| Flüge | Ryanair-Fare-Finder und Wizz Air Preiskalender (ca. 2 Monate), Kiwi.com (alle Airlines, auch kombiniert, 5 Wochen) | live |
+| Bus | Flixbus (zu den Flughäfen und zu ~90 Städten, 5 Wochen) | live |
 | Zug | typische ÖBB/DB-Preise mit deinen Karten (DB/ÖBB sperren automatische Abfragen) | ≈ |
 | Auto | Straßen-km (OpenStreetMap), heutiger Spritpreis (E-Control), Maut/Parken | live / ≈ |
 | Betten | Hostelworld (billigstes Bett pro Stadt, ~80 Städte) | live |
-| Hotels | trivago (billigste Hotels/Hostels/Apartments für die nächsten 2 Wochenenden, 30 Städte) | live |
+| Hotels | trivago (billigste Hotels/Hostels/Apartments für die nächsten 4 Wochenenden, 25 Städte) | live |
 | Preisfehler | eigene Erkennung (Preis weit unter dem Normalpreis der Strecke) + Travel-Dealz, Mydealz, Urlaubspiraten, Fly4free | live |
 
 Details zu jeder Quelle: `docs/SOURCES.md`.

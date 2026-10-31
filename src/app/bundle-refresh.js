@@ -18,5 +18,5 @@ await writeFile(join(here, 'generated-assets.js'),
 await mkdir(join(root, 'dist'), { recursive: true });
 const r = await build({ entryPoints: [join(root, 'src', 'refresh.js')], bundle: true, platform: 'node', format: 'esm', target: 'node20',
   outfile: join(root, 'dist', 'refresh.mjs'), legalComments: 'none',
-  banner: { js: '// Cheap Escape refresh job (bundled). Source: branch cheap-escape of the company-brief repo.' } });
+  banner: { js: '// Cheap Escape refresh job (bundled). Source: github.com/berchthallernoah-star/cheap-escape' } });
 console.log(`built dist/refresh.mjs${r.errors.length ? ' WITH ERRORS' : ''}`);

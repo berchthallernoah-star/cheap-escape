@@ -1,7 +1,7 @@
 // ONE-FILE REFRESH: fetch live prices -> build the phone app -> check alerts.
 // Bundled to dist/refresh.mjs (no npm install needed) so a scheduled cloud
 // session can run it without access to the Git repository.
-//   NODE_USE_ENV_PROXY=1 node refresh.mjs [--out ./out] [--rules alerts.json] [--days 45]
+//   NODE_USE_ENV_PROXY=1 node refresh.mjs [--out ./out] [--rules alerts.json] [--days 60]
 // Exit codes: 0 ok + deals, 3 ok + no deals, 2 no flight/bus/train prices at all (do not publish).
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -22,7 +22,7 @@ export function renderApp(snapshot) {
 async function main() {
   const out = arg('out', 'out');
   await mkdir(out, { recursive: true });
-  const snap = await buildSnapshot({ days: Number(arg('days', 45)), budget: Number(arg('budget', 5000)), minutes: Number(arg('minutes', 8)), cacheDir: join(out, '.cache') });
+  const snap = await buildSnapshot({ days: Number(arg('days', 60)), budget: Number(arg('budget', 6000)), minutes: Number(arg('minutes', 12)), cacheDir: join(out, '.cache') });
   await writeFile(join(out, 'snapshot.json'), JSON.stringify(snap));
   console.log(`\nsnapshot: ${snap.flights.length} flights, ${snap.ground.length} bus/train trips, ${snap.timed.length} airport buses, ${snap.requests} requests`);
   for (const s of snap.sources) console.log(`  ${s.ok ? '✓' : '✗'} ${s.id} ${s.ok ? '' : s.error}`);
