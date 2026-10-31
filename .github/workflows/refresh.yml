@@ -1,0 +1,83 @@
+# Cheap Escape: fetch live prices, lock the app with your password, publish it.
+# Runs every 3 hours, on every change, and when you tap "Run workflow" (GitHub app or website).
+# Needs the repository secret PAGE_PASSWORD. Optional: NTFY_TOPIC for phone notifications.
+name: Refresh prices
+
+on:
+  schedule:
+    - cron: '23 */3 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Tests
+        run: npm test
+
+      - name: Fetch live prices and build the app
+        id: refresh
+        env:
+          CE_HOSTING: github
+          CE_RUN_URL: https://github.com/${{ github.repository }}/actions/workflows/refresh.yml
+          CE_EVERY: '3'
+        run: |
+          node src/app/bundle-refresh.js
+          set +e
+          node dist/refresh.mjs --out out
+          code=$?
+          set -e
+          echo "exit=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" != "0" ] && [ "$code" != "3" ]; then exit "$code"; fi
+
+      - name: Lock the app with your password
+        env:
+          PAGE_PASSWORD: ${{ secrets.PAGE_PASSWORD }}
+        run: node src/site/encrypt.js out/cheap-escape.html _site/index.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Remember which deals were already sent
+        uses: actions/cache@v4
+        with:
+          path: .state
+          key: notified-${{ github.run_id }}
+          restore-keys: notified-
+
+      - name: Phone notification (only new deals and possible price mistakes)
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: node src/site/notify.js out/alerts.md .state/notified.json "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

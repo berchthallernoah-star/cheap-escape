@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#151a21">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cheap Escape">
+<title>Cheap Escape</title>
+<style>
+:root { --paper: #f2f3ef; --surface: #fff; --ink: #151a21; --muted: #5b6470; --line: #d5d9d2; --sign: #ffc72c; --bad: #b42318; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --paper: #0f1318; --surface: #161c23; --ink: #eef0ec; --muted: #9aa3ae; --line: #29323c; --bad: #ff8a80; color-scheme: dark; } }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--paper); color: var(--ink);
+  font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 24px max(16px, env(safe-area-inset-left, 0px)); }
+form { width: min(360px, 100%); display: grid; gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
+.mark { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.5rem; letter-spacing: -.01em; }
+.mark::before { content: ""; width: 26px; height: 26px; border-radius: 5px; background: var(--sign) linear-gradient(135deg, transparent 46%, #151a21 46% 54%, transparent 54%); }
+p { margin: 0; color: var(--muted); font-size: 14px; }
+input[type=password] { width: 100%; font: inherit; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); }
+label.keep { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+button { font: inherit; font-weight: 700; padding: 11px; border: 0; border-radius: 8px; background: var(--sign); color: #151a21; cursor: pointer; }
+button:disabled { opacity: .6; }
+.err { color: var(--bad); font-size: 14px; min-height: 1.2em; }
+:focus-visible { outline: 3px solid var(--sign); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<form id="f" autocomplete="on">
+  <div class="mark">Cheap Escape</div>
+  <p>Private Seite. Gib dein Passwort ein.</p>
+  <input type="text" name="username" value="cheap-escape" autocomplete="username" hidden>
+  <input type="password" id="pw" name="password" autocomplete="current-password" placeholder="Passwort" required>
+  <label class="keep"><input type="checkbox" id="keep" checked> Auf diesem Gerät angemeldet bleiben</label>
+  <button id="go" type="submit">Öffnen</button>
+  <div class="err" id="err" role="alert"></div>
+</form>
+<script>
+const P = /*PAYLOAD*/null;
+const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+const toB64 = (buf) => { let s = ''; const a = new Uint8Array(buf); for (let i = 0; i < a.length; i += 0x8000) s += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000)); return btoa(s); };
+async function derive(pw) {
+  const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: b64(P.salt), iterations: P.iterations, hash: 'SHA-256' }, km, { name: 'AES-GCM', length: 256 }, true, ['decrypt']);
+}
+async function show(key) {
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(P.iv) }, key, b64(P.data));
+  const html = new TextDecoder().decode(plain);
+  document.open(); document.write(html); document.close();
+}
+(async () => {
+  if (!window.crypto?.subtle) { document.getElementById('err').textContent = 'Dieser Browser kann die Seite nicht entschlüsseln. Bitte einen aktuellen Browser verwenden.'; return; }
+  try {
+    const saved = localStorage.getItem('ce-key');
+    if (saved) { await show(await crypto.subtle.importKey('raw', b64(saved), { name: 'AES-GCM' }, true, ['decrypt'])); return; }
+  } catch { try { localStorage.removeItem('ce-key'); } catch {} }
+  document.getElementById('pw').focus();
+})();
+document.getElementById('f').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('go');
+  const err = document.getElementById('err');
+  btn.disabled = true; btn.textContent = 'Entsperre…'; err.textContent = '';
+  try {
+    const key = await derive(document.getElementById('pw').value);
+    const raw = await crypto.subtle.exportKey('raw', key);
+    await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(P.iv) }, key, b64(P.data)); // throws on a wrong password
+    if (document.getElementById('keep').checked) { try { localStorage.setItem('ce-key', toB64(raw)); } catch {} }
+    await show(key);
+  } catch {
+    btn.disabled = false; btn.textContent = 'Öffnen';
+    err.textContent = 'Falsches Passwort.';
+  }
+});
+</script>
+</body>
+</html>

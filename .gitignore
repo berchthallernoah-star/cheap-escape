@@ -1,0 +1,9 @@
+node_modules/
+.venv/
+.cache/
+dist/
+*.log
+src/app/generated-assets.js
+out/
+_site/
+.state/

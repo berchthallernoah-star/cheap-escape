@@ -1,0 +1,13 @@
+{
+  "rules": [
+    {
+      "name": "Any weekend, me alone, door to door",
+      "travelers": [{ "name": "Me", "cards": ["superschoolcard"] }],
+      "car": true,
+      "maxPerPerson": 60,
+      "weekends": 6,
+      "leaveTime": "14:00",
+      "minStayHours": 20
+    }
+  ]
+}
