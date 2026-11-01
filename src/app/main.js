@@ -369,7 +369,7 @@ function altsHtml(l) {
     const name = a.operator && a.mode !== 'walk' ? a.operator : ALT_WORD[a.mode] || a.mode;
     return `<li class="alt-item${diff < 0 ? ' cheaper' : ''}"><span>${esc(name)}</span><span>${fmtDuration(a.minutes)}</span><span>${a.est ? '≈' : ''}${eur(a.eur)}</span><span>${d}</span></li>`;
   }).join('');
-  return `<details class="alts"><summary>Andere Wege für diesen Schritt (${l.alts.length})</summary><ul>${items}</ul></details>`;
+  return `<details class="alts"><summary>Andere Wege (${l.alts.length})</summary><ul>${items}</ul></details>`;
 }
 function legHtml(l) {
   const tzDep = l.kind === 'flight' ? l.tzFrom : l.tz || l.tzFrom;
@@ -410,16 +410,16 @@ function tripHtml(t, i, multiWin) {
   const VEH = { car: 'Mit Auto', bike: 'Mit Rad', public: 'Ohne Auto und Rad' };
   const alts = (t.alts || []).length ? `<p class="alt">${t.alts.map((a) => `${VEH[a.vehicle] || a.vehicle}: ${eur(a.total)} (${a.total > t.total ? '+' : ''}${eur(a.total - t.total)}) über ${esc(a.via)}`).join('<br>')}</p>` : '';
   const ride = (l) => (t.mode === 'car'
-    ? `${dayOf(l.dep, HOME_TZ)} ${timeOf(l.dep, HOME_TZ, true)} ${esc(l.from === 'Zuhause' ? 'Salzburg' : cityDe(t.city))} → ${esc(l.to === 'Zuhause' ? 'Salzburg' : cityDe(t.city))} <b>Auto</b>`
-    : `${dayOf(l.dep, l.tzFrom)} ${timeOf(l.dep, l.tzFrom, l.approxTime)} ${esc(shortPlace(l.fromCode, l.from))} → ${esc(shortPlace(l.toCode, l.to))} <b>${MODE_WORD[l.kind] || l.kind}</b>`);
+    ? `<b class="m-car">Auto</b>${dayOf(l.dep, HOME_TZ)} ${timeOf(l.dep, HOME_TZ, true)} · ${esc(l.from === 'Zuhause' ? 'Salzburg' : cityDe(t.city))} → ${esc(l.to === 'Zuhause' ? 'Salzburg' : cityDe(t.city))}`
+    : `<b class="m-${l.kind}">${MODE_WORD[l.kind] || l.kind}</b>${dayOf(l.dep, l.tzFrom)} ${timeOf(l.dep, l.tzFrom, l.approxTime)} · ${esc(shortPlace(l.fromCode, l.from))} → ${esc(shortPlace(l.toCode, l.to))}`);
   const km = kmOf(t.out.place);
   return `<article class="trip">
     <button type="button" class="trip-head" aria-expanded="false" aria-controls="legs-${i}" id="trip-${i}">
       <span class="dest"><span class="city">${esc(cityDe(t.city))}</span><span class="country">${esc(countryDe(t.countryCode, t.country))}${km ? ` · ${km.toLocaleString('de-AT')} km` : ''}</span></span>
       <span class="price"><span class="total">${eur(t.total)}</span>${people}</span>
       <span class="when">
-        <span><i>Hin</i> ${ride(out)}</span>
-        <span><i>Zurück</i> ${ride(back)}</span>
+        <span><i>Hin</i><span>${ride(out)}</span></span>
+        <span><i>Zurück</i><span>${ride(back)}</span></span>
       </span>
       ${compareHtml(t)}
       ${stayHtml(t, t.stay)}
@@ -479,7 +479,7 @@ function renderScanStrip() {
   const bests = ws.map((w) => { const r = cached(w); return r ? bestOf(r) : undefined; });
   const known = bests.filter(Boolean);
   const min = known.length > 1 ? Math.min(...known.map((b) => b.total)) : null;
-  $('scan-title').textContent = `Gleich lange Reise (${n ? nightsWord(n) : 'Tagesausflug'}), anderer Start:`;
+  $('scan-title').textContent = `Gleich lange Reise (${n ? nightsWord(n) : 'Tagesausflug'}), anderer Start`;
   $('scan').innerHTML = ws.map((w, i) => {
     const b = bests[i];
     const on = w.start === state.daysFrom;
@@ -789,7 +789,6 @@ document.addEventListener('click', (e) => {
   if ((x = hit('#who-btn'))) {
     const open = x.getAttribute('aria-expanded') === 'true';
     x.setAttribute('aria-expanded', String(!open));
-    x.textContent = open ? 'Ändern' : 'Fertig';
     $('who-panel').hidden = open;
     return;
   }
@@ -857,7 +856,7 @@ function renderBeds() {
   rows.sort((a, b) => a.perNight - b.perNight);
   $('hotels').innerHTML = rows.length ? rows.slice(0, 24).map((h) => `<li class="cheap-item">
       <a href="${esc(h.url)}" target="_blank" rel="noopener"><b>${esc(cityDe(h.city))} · ${esc(h.name)}</b></a>
-      <span class="cheap-meta">${h.stars ? `${'★'.repeat(Math.min(5, h.stars))} · ` : ''}${h.rating ? `${String(h.rating).replace('.', ',')}/10 · ` : ''}${esc(whereDe(h.where))} · ${esc(h.advertiser || 'trivago')}</span>
+      <span class="cheap-meta">${h.stars ? `<span class="stars">${'★'.repeat(Math.min(5, h.stars))}</span> · ` : ''}${h.rating ? `${String(h.rating).replace('.', ',')}/10 · ` : ''}${esc(whereDe(h.where))} · ${esc(h.advertiser || 'trivago')}</span>
       <span class="cheap-price">${eur(h.perNight)}/Nacht${h.perStay ? ` <span class="muted">(${eur(h.perStay)} für ${h.nights} Nächte)</span>` : ''}</span></li>`).join('')
     : '<li class="cheap-empty">Noch keine Hotelpreise geladen.</li>';
 

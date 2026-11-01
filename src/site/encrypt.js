@@ -14,9 +14,10 @@ export const ITERATIONS = 600000;
 const here = dirname(fileURLToPath(import.meta.url));
 
 export function wrapDocument(fragment) {
-  return '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+  return '<!doctype html><html lang="de"><head><meta charset="utf-8">'
     + '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
-    + '<meta name="theme-color" content="#151a21"><style>:root{color-scheme:light dark}body{margin:0}[hidden]{display:none!important}</style>'
+    + '<meta name="theme-color" content="#fbf6f1" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#121012" media="(prefers-color-scheme: dark)">'
+    + '<style>:root{color-scheme:light dark}body{margin:0}[hidden]{display:none!important}</style>'
     + `</head><body>${fragment}</body></html>`;
 }
 

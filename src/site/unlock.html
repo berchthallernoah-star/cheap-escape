@@ -4,35 +4,47 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
-<meta name="theme-color" content="#151a21">
+<meta name="theme-color" content="#fbf6f1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121012" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Cheap Escape">
 <title>Cheap Escape</title>
 <style>
-:root { --paper: #f2f3ef; --surface: #fff; --ink: #151a21; --muted: #5b6470; --line: #d5d9d2; --sign: #ffc72c; --bad: #b42318; color-scheme: light; }
-@media (prefers-color-scheme: dark) { :root { --paper: #0f1318; --surface: #161c23; --ink: #eef0ec; --muted: #9aa3ae; --line: #29323c; --bad: #ff8a80; color-scheme: dark; } }
-* { box-sizing: border-box; }
-body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--paper); color: var(--ink);
-  font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 24px max(16px, env(safe-area-inset-left, 0px)); }
-form { width: min(360px, 100%); display: grid; gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
-.mark { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.5rem; letter-spacing: -.01em; }
-.mark::before { content: ""; width: 26px; height: 26px; border-radius: 5px; background: var(--sign) linear-gradient(135deg, transparent 46%, #151a21 46% 54%, transparent 54%); }
-p { margin: 0; color: var(--muted); font-size: 14px; }
-input[type=password] { width: 100%; font: inherit; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); }
-label.keep { display: flex; gap: 8px; align-items: center; font-size: 14px; }
-button { font: inherit; font-weight: 700; padding: 11px; border: 0; border-radius: 8px; background: var(--sign); color: #151a21; cursor: pointer; }
+:root { --bg: #fbf6f1; --card: #fff; --fill: #f1e8e2; --ink: #1d1517; --ink2: #6f6266; --ink3: #a0939a; --melon: #f23a5f; --mango: #ffc53d; --tang: #ff8a3d; --bad: #d61e47;
+  --shadow: 0 1px 2px rgba(60,25,30,.05), 0 12px 32px rgba(60,25,30,.09); color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --bg: #121012; --card: #1f191c; --fill: #2b2427; --ink: #f8f1ed; --ink2: #b6a9ac; --ink3: #7f7377; --melon: #ff4f72; --bad: #ff7a95; --shadow: none; color-scheme: dark; } }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { margin: 0; min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; background: var(--bg); color: var(--ink);
+  font: 16px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased;
+  padding: 24px max(16px, env(safe-area-inset-left, 0px)); }
+form { width: min(360px, 100%); display: grid; gap: 14px; justify-items: center; text-align: center; background: var(--card); border-radius: 24px; padding: 28px 22px 22px; box-shadow: var(--shadow); }
+.icon { width: 64px; height: 64px; border-radius: 16px; display: grid; place-items: center; background: linear-gradient(140deg, var(--mango) 0%, var(--tang) 48%, var(--melon) 100%); box-shadow: 0 8px 20px rgba(242,58,95,.3); }
+.icon svg { width: 34px; height: 34px; color: #fff; }
+h1 { margin: 4px 0 0; font: 800 26px/1.1 ui-rounded, "SF Pro Rounded", -apple-system, system-ui, sans-serif; letter-spacing: -.02em; }
+p { margin: 0; color: var(--ink2); font-size: 15px; }
+input[type=password] { width: 100%; font: inherit; font-size: 17px; padding: 13px 14px; border: 0; border-radius: 12px; background: var(--fill); color: var(--ink); outline: none; }
+input[type=password]:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--melon) 40%, transparent); }
+label.keep { display: flex; gap: 10px; align-items: center; justify-content: space-between; width: 100%; font-size: 15px; text-align: left; }
+.switch { appearance: none; -webkit-appearance: none; width: 51px; height: 31px; border-radius: 16px; background: var(--fill); position: relative; flex: none; cursor: pointer; margin: 0; transition: background .2s; }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 3px 8px rgba(0,0,0,.15), 0 1px 1px rgba(0,0,0,.16); transition: transform .2s; }
+.switch:checked { background: #2bbf68; }
+.switch:checked::after { transform: translateX(20px); }
+button { width: 100%; font: inherit; font-size: 17px; font-weight: 700; padding: 14px; border: 0; border-radius: 14px; background: var(--melon); color: #fff; cursor: pointer; }
+button:active { opacity: .8; }
 button:disabled { opacity: .6; }
 .err { color: var(--bad); font-size: 14px; min-height: 1.2em; }
-:focus-visible { outline: 3px solid var(--sign); outline-offset: 2px; }
+:focus-visible { outline: 3px solid var(--melon); outline-offset: 2px; }
 </style>
 </head>
 <body>
 <form id="f" autocomplete="on">
-  <div class="mark">Cheap Escape</div>
+  <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M21.5 2.5 2.8 10.2l7.4 3.1m11.3-10.8-7.7 18.7-3.6-7.9m11.3-10.8L10.2 13.3"/></svg></span>
+  <h1>Cheap Escape</h1>
   <p>Private Seite. Gib dein Passwort ein.</p>
   <input type="text" name="username" value="cheap-escape" autocomplete="username" hidden>
   <input type="password" id="pw" name="password" autocomplete="current-password" placeholder="Passwort" required>
-  <label class="keep"><input type="checkbox" id="keep" checked> Auf diesem Gerät angemeldet bleiben</label>
+  <label class="keep">Auf diesem Gerät angemeldet bleiben<input type="checkbox" class="switch" id="keep" checked></label>
   <button id="go" type="submit">Öffnen</button>
   <div class="err" id="err" role="alert"></div>
 </form>
