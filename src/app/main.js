@@ -350,14 +350,23 @@ function stayFor(t) {
   const cheapest = [bed, hotelTotal].filter((x) => x != null).sort((a, b) => a - b)[0] ?? null;
   return { nights, inDate, outDate, hw, hotel, hotelExact: !!exact, hotelDate: near?.arrival, bed, hotelTotal, cheapest };
 }
+// on the card itself only text (the whole card is one button: links in it would steal the tap);
+// the booking links for beds and hotels sit in the opened part
 function stayHtml(t, s) {
   if (!s || !s.nights) return '';
   const parts = [];
-  if (s.hw) parts.push(`<a href="${esc(s.hw.url)}" target="_blank" rel="noopener">Bett ab ${eur(s.hw.from)}/Nacht</a> <span class="muted">Hostelworld${s.hw.from < 6 ? ', wirkt wie Fehler oder Aktion: prüfen' : ''}</span>`);
-  if (s.hotel) parts.push(`<a href="${esc(s.hotel.url)}" target="_blank" rel="noopener">${esc(s.hotel.name)} ${s.hotelExact ? '' : '≈'}${eur(s.hotel.perNight)}/Nacht</a> <span class="muted">${esc(s.hotel.advertiser || 'trivago')}${s.hotelExact ? '' : `, Preis vom ${dm(s.hotelDate)}`}</span>`);
+  if (s.hw) parts.push(`<span class="stay-hl">Bett ab ${eur(s.hw.from)}/Nacht</span> <span class="muted">Hostelworld${s.hw.from < 6 ? ', wirkt wie Fehler oder Aktion' : ''}</span>`);
+  if (s.hotel) parts.push(`<span class="stay-hl">Hotel ${s.hotelExact ? '' : '≈'}${eur(s.hotel.perNight)}/Nacht</span> <span class="muted">${esc(s.hotel.advertiser || 'trivago')}</span>`);
   const n = nightsWord(s.nights);
   if (!parts.length) return `<span class="stay"><span class="muted">${n} · für diese Stadt noch keine Unterkunftspreise</span></span>`;
   return `<span class="stay"><b>${n}:</b> ${parts.join(' · ')}${s.cheapest != null ? ` <span class="stay-total">Reise + Schlafen ≈ ${eur(t.total + s.cheapest)}</span>` : ''}</span>`;
+}
+function stayLinksHtml(s) {
+  if (!s || !s.nights || (!s.hw && !s.hotel)) return '';
+  const items = [];
+  if (s.hw) items.push(`<li><a href="${esc(s.hw.url)}" target="_blank" rel="noopener">Hostelbetten ab ${eur(s.hw.from)}/Nacht</a> <span class="muted">Hostelworld, billigstes Bett der Stadt${s.hw.from < 6 ? '; so billig ist meist ein Anzeigefehler oder eine Aktion, prüfen' : ''}</span></li>`);
+  if (s.hotel) items.push(`<li><a href="${esc(s.hotel.url)}" target="_blank" rel="noopener">${esc(s.hotel.name)}, ${s.hotelExact ? '' : '≈'}${eur(s.hotel.perNight)}/Nacht</a> <span class="muted">${esc(s.hotel.advertiser || 'trivago')}${s.hotelExact ? '' : `, Preis vom Wochenende ${dm(s.hotelDate)}`}</span></li>`);
+  return `<div class="sleep"><p class="sleep-title">Schlafen (${nightsWord(s.nights)})</p><ul>${items.join('')}</ul></div>`;
 }
 
 // ---------------------------------------------------------------- render: trips
@@ -435,6 +444,7 @@ function tripHtml(t, i, multiWin) {
     </button>
     <div class="trip-detail" id="legs-${i}" hidden>
       <ol class="legs">${t.legs.map(legHtml).join('')}</ol>
+      ${stayLinksHtml(t.stay)}
       ${alts}
       <p class="check">Zuerst die Hauptfahrten buchen (Flug, Fernbus), dann Busse und Züge. Preise ändern sich laufend; der echte Preis steht auf der Buchungsseite.</p>
     </div>
