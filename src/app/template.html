@@ -21,6 +21,7 @@
   --lime: #2bbf68;
   --lime-text: #128a43;
   --lime-tint: #dcf6e6;
+  --mango-tint: #fff0c9;
   --tang: #ff8a3d;
   --tang-text: #b9500a;
   --berry: #b8368a;
@@ -40,7 +41,7 @@
   :root:not([data-theme="light"]) {
     --bg: #121012; --card: #1f191c; --fill: #2b2427; --fill2: #3a3135; --ink: #f8f1ed; --ink2: #b6a9ac; --ink3: #7f7377;
     --sep: rgba(255, 235, 235, .12); --melon: #ff4f72; --melon-text: #ff7a95; --melon-tint: #3f1b25; --mango: #ffc94d; --mango-ink: #2b1b00;
-    --lime: #36d27a; --lime-text: #55de8e; --lime-tint: #15301f; --tang: #ff9a52; --tang-text: #ffab70; --berry: #e05bb0; --berry-text: #f07cc4;
+    --lime: #36d27a; --lime-text: #55de8e; --lime-tint: #15301f; --mango-tint: #3a2e12; --tang: #ff9a52; --tang-text: #ffab70; --berry: #e05bb0; --berry-text: #f07cc4;
     --est-text: #f2b45a; --tip-a: #3a2316; --tip-b: #3b1825; --tip-ink: #ffc9d5; --shadow: none; --glass: rgba(18, 16, 18, .78);
     color-scheme: dark;
   }
@@ -48,7 +49,7 @@
 :root[data-theme="dark"] {
   --bg: #121012; --card: #1f191c; --fill: #2b2427; --fill2: #3a3135; --ink: #f8f1ed; --ink2: #b6a9ac; --ink3: #7f7377;
   --sep: rgba(255, 235, 235, .12); --melon: #ff4f72; --melon-text: #ff7a95; --melon-tint: #3f1b25; --mango: #ffc94d; --mango-ink: #2b1b00;
-  --lime: #36d27a; --lime-text: #55de8e; --lime-tint: #15301f; --tang: #ff9a52; --tang-text: #ffab70; --berry: #e05bb0; --berry-text: #f07cc4;
+  --lime: #36d27a; --lime-text: #55de8e; --lime-tint: #15301f; --mango-tint: #3a2e12; --tang: #ff9a52; --tang-text: #ffab70; --berry: #e05bb0; --berry-text: #f07cc4;
   --est-text: #f2b45a; --tip-a: #3a2316; --tip-b: #3b1825; --tip-ink: #ffc9d5; --shadow: none; --glass: rgba(18, 16, 18, .78);
   color-scheme: dark;
 }
@@ -86,7 +87,7 @@ h1 { font-size: 34px; font-weight: 800; letter-spacing: -.02em; line-height: 1.0
 .banner { background: var(--mango); color: var(--mango-ink); border-radius: 14px; padding: 12px 14px; font-weight: 600; margin: 0; }
 
 /* ---------- bottom tab bar (frosted glass) */
-.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
   padding: 6px max(12px, env(safe-area-inset-left, 0px)) calc(6px + env(safe-area-inset-bottom, 0px));
   background: var(--glass); -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px); border-top: .5px solid var(--sep); }
 .tabs button { appearance: none; border: 0; background: none; display: grid; justify-items: center; gap: 2px; padding: 4px 0; cursor: pointer;
@@ -107,7 +108,8 @@ h1 { font-size: 34px; font-weight: 800; letter-spacing: -.02em; line-height: 1.0
 .seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; background: var(--fill); border-radius: 10px; padding: 2px; min-width: 0; }
 .seg button { appearance: none; border: 0; background: transparent; border-radius: 8px; padding: 6px 12px; font-weight: 600; font-size: 14px; cursor: pointer; white-space: nowrap; color: var(--ink); }
 .seg button[aria-pressed="true"] { background: var(--card); box-shadow: 0 1px 1px rgba(0,0,0,.04), 0 3px 8px rgba(0,0,0,.12); }
-.seg.wide { display: grid; }
+.seg.wide { display: grid; max-width: 100%; }
+.seg.wide button { min-width: 0; padding: 7px 4px; font-size: 13.5px; white-space: normal; line-height: 1.15; }
 
 /* pills */
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -304,6 +306,51 @@ button.row:active { background: var(--fill); }
 .cheap-empty { color: var(--ink2); font-size: 15px; padding: 4px; }
 .stars { color: var(--mango); letter-spacing: 1px; }
 
+/* ---------- finder: when is it cheapest? */
+.search.big { padding: 0 14px; border-radius: 14px; }
+.search.big input { height: 50px; font-size: 17px; }
+.link-btn { appearance: none; border: 0; background: none; padding: 2px 4px; color: var(--melon-text); font-weight: 600; font-size: 15px; text-align: left; cursor: pointer; justify-self: start; }
+.price-pill { background: var(--mango); color: var(--mango-ink); font: 800 16px/1 var(--f-round); padding: 8px 10px; border-radius: 10px; font-variant-numeric: tabular-nums; flex: none; }
+.find-row { justify-content: flex-start; }
+.find-row .when-l { display: grid; gap: 1px; min-width: 0; flex: 1; }
+.find-row .when-l b { font-weight: 600; }
+.find-row .when-l small { color: var(--ink2); font-size: 13px; }
+.find-row .rank { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font: 700 13px/1 var(--f-round); background: var(--fill); color: var(--ink2); flex: none; }
+.find-row:first-child .rank { background: var(--lime); color: #fff; }
+.row.sel { background: var(--melon-tint); }
+.month { display: grid; gap: 8px; }
+.month + .month { margin-top: 14px; }
+.month-name { margin: 0 4px; font: 700 17px/1.2 var(--f-round); }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.cal .dow { text-align: center; font-size: 11px; font-weight: 600; color: var(--ink3); }
+.day { appearance: none; border: 0; border-radius: 11px; background: var(--card); min-height: 54px; padding: 6px 1px 7px; display: grid; align-content: space-between; justify-items: center;
+  color: var(--ink); cursor: pointer; box-shadow: var(--shadow); min-width: 0; }
+.day .d { font-size: 12px; color: var(--ink2); font-weight: 600; }
+.day .p { font: 700 12.5px/1 var(--f-round); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.day.blank { background: transparent; box-shadow: none; cursor: default; }
+.day.na { cursor: default; }
+.day.na .p, .day.wait .p { color: var(--ink3); font-weight: 500; }
+.day.l1 { background: var(--lime-tint); }
+.day.l1 .p { color: var(--lime-text); }
+.day.l2 { background: var(--mango-tint); }
+.day.l3 { background: var(--fill); box-shadow: none; }
+.day.best { box-shadow: inset 0 0 0 2px var(--lime), var(--shadow); }
+.day.sel { background: linear-gradient(145deg, var(--melon), var(--tang)); box-shadow: 0 6px 14px rgba(242, 58, 95, .35); }
+.day.sel .d, .day.sel .p { color: #fff; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--ink2); margin: 4px 4px 0; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.wkrows { display: grid; gap: 8px; }
+.wkrow { appearance: none; border: 0; background: var(--card); border-radius: 14px; box-shadow: var(--shadow); display: grid; grid-template-columns: 6.8em minmax(0, 1fr) 4.4em;
+  gap: 10px; align-items: center; padding: 11px 12px; color: var(--ink); text-align: left; cursor: pointer; }
+.wkrow b { font-weight: 600; font-size: 15px; }
+.wkrow small { display: block; color: var(--ink2); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wkrow .bar { height: 10px; border-radius: 5px; background: var(--fill); overflow: hidden; }
+.wkrow .bar i { display: block; height: 100%; border-radius: 5px; background: var(--melon); }
+.wkrow .bar i.l1 { background: var(--lime); }
+.wkrow .bar i.l2 { background: var(--mango); }
+.wkrow .amt { font: 800 15px/1 var(--f-round); text-align: right; font-variant-numeric: tabular-nums; }
+.wkrow.sel { box-shadow: inset 0 0 0 2px var(--melon), var(--shadow); }
+
 footer { padding-top: 6px; font-size: 12.5px; color: var(--ink3); display: grid; gap: 8px; }
 footer p { margin: 0; max-width: 65ch; }
 .sources { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; }
@@ -405,6 +452,7 @@ footer p { margin: 0; max-width: 65ch; }
         <label class="search small"><span class="muted" style="font-size:14px">max €</span><span class="sr">Maximal Euro pro Person</span><input id="max-pp" type="number" inputmode="numeric" min="0" step="5" placeholder="p. P."></label>
       </div>
       <datalist id="dest-list"></datalist>
+      <button type="button" class="link-btn" id="dest-when" hidden></button>
       <div class="seg wide" role="group" aria-label="Entfernung" id="km-chips">
         <button type="button" data-km="0">Alle</button>
         <button type="button" data-km="200">200+ km</button>
@@ -421,6 +469,36 @@ footer p { margin: 0; max-width: 65ch; }
       </div>
       <div class="chips" role="group" aria-label="Verkehrsmittel" id="mode-chips"></div>
       <div class="trips" id="trips" aria-live="polite"></div>
+    </section>
+  </div>
+
+  <!-- ============================================================ SUCHEN: wann am billigsten -->
+  <div id="view-find" role="tabpanel" aria-labelledby="tab-find" class="wrap" hidden>
+    <section class="block">
+      <h2>Wann ist es am billigsten?</h2>
+      <label class="search big"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.6-4.6"/></svg>
+        <span class="sr">Land oder Stadt</span><input id="find-dest" list="dest-list" placeholder="Land oder Stadt, z. B. London" autocomplete="off" enterkeyhint="search"></label>
+      <div class="chips" id="find-quick"></div>
+      <div class="seg wide" role="group" aria-label="Wie lange?" id="find-len">
+        <button type="button" data-len="we">Wochenende</button>
+        <button type="button" data-len="2-3">2–3 Nächte</button>
+        <button type="button" data-len="4-5">4–5 Nächte</button>
+        <button type="button" data-len="7">1 Woche</button>
+      </div>
+      <p class="caption" id="find-status"></p>
+    </section>
+    <section class="block" id="find-best-wrap" hidden>
+      <p class="sub">Die billigsten Termine</p>
+      <div class="group" id="find-best"></div>
+    </section>
+    <section class="block" id="find-cal-wrap" hidden>
+      <p class="sub" id="find-cal-title">Preis je Starttag</p>
+      <div id="find-cal"></div>
+      <p class="legend"><span><i style="background:var(--lime)"></i>am billigsten</span><span><i style="background:var(--mango)"></i>günstig</span><span><i style="background:var(--fill)"></i>teurer</span><span>Preis ab Haustür, hin und zurück</span></p>
+    </section>
+    <section class="block" id="find-trips-wrap" hidden>
+      <h2 id="find-trips-title"></h2>
+      <div class="trips" id="find-trips"></div>
     </section>
   </div>
 
@@ -464,6 +542,8 @@ footer p { margin: 0; max-width: 65ch; }
 <nav class="tabs" role="tablist" aria-label="Bereiche">
   <button type="button" role="tab" id="tab-trips" aria-controls="view-trips" data-tab="trips">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M21.5 2.5 2.8 10.2l7.4 3.1m11.3-10.8-7.7 18.7-3.6-7.9m11.3-10.8L10.2 13.3"/></svg>Reisen</button>
+  <button type="button" role="tab" id="tab-find" aria-controls="view-find" data-tab="find">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.6-4.6"/></svg>Suchen</button>
   <button type="button" role="tab" id="tab-cheap" aria-controls="view-cheap" data-tab="cheap">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12L13 2Z"/></svg>Preisfehler<span class="count" id="cheap-count" hidden></span></button>
   <button type="button" role="tab" id="tab-beds" aria-controls="view-beds" data-tab="beds">

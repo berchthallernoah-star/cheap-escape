@@ -16,6 +16,9 @@ und Preise, die nach einem Fehler aussehen.
 - **Wohin:** leer = überall; deutsch oder englisch („Mailand“, „Italien“, „London“, Flughafencode). Entfernung
   (ab 200 km ist Standard, sonst ist München mit dem Bus immer das Billigste).
 - **Flug / Bus / Zug / Auto:** Filter über der Liste, jeweils mit dem billigsten Preis.
+- **Suchen – wann ist es am billigsten?** Land oder Stadt eingeben (auch mehrere: „Spanien, Portugal“), Dauer wählen
+  (Wochenende, 2–3 / 4–5 Nächte, 1 Woche). Die App rechnet jeden Termin durch: die 5 billigsten, ein Preis-Kalender
+  je Starttag (grün = am billigsten) und die Reisen zum angetippten Tag.
 - **Preisfehler** und **Betten** haben eigene Reiter.
 
 ## So funktioniert es

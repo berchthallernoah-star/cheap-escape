@@ -114,6 +114,15 @@ const DEST = (() => {
     ['tschechien', 'cz'], ['turkei', 'tr'], ['mallorca', 'es'], ['kanaren', 'es'], ['sizilien', 'it'], ['sardinien', 'it']]) if (countries.has(code)) add(alias, code);
   return { index, labels: [...labels.keys()].sort((x, y) => x.localeCompare(y, 'de')) };
 })();
+/** Words in the destination field that match no city, country or airport we know. */
+function unknownDest(text) {
+  return String(text || '').split(',').map((s) => s.trim()).filter(Boolean).filter((tok) => {
+    const k = norm(tok);
+    if (DEST.index.has(k)) return false;
+    if (k.length >= 3) for (const name of DEST.index.keys()) if (name.startsWith(k)) return false;
+    return true;
+  });
+}
 function resolveDest(text) {
   const toks = String(text || '').split(',').map((s) => s.trim()).filter(Boolean);
   if (!toks.length) return null;
@@ -151,6 +160,7 @@ const DEFAULTS = {
   travelers: [{ name: 'Ich', cards: ['superschoolcard'] }],
   car: true, bike: false, ground: true, maxWalk: 30, bags: 'small', minStay: 20,
   dest: '', maxPP: '', minKm: 200, mode: 'all', sort: 'price', stayDate: null,
+  findDest: '', findLen: '2-3', findSel: null,
 };
 const KEY = 'cheap-escape-2';
 let state = load();
@@ -262,7 +272,7 @@ function baseQuery() {
     destinations: resolveDest(state.dest),
     maxPrice: Number(state.maxPP) > 0 ? Number(state.maxPP) * n : null,
     minKm: state.dest.trim() ? 0 : Number(state.minKm), // a named destination wins over the distance filter
-    limit: 100,
+    limit: m === 'all' ? 100 : 300, // a chosen way of travel must not be crowded out by cheaper other ones
     perCity: 3,
   };
 }
@@ -411,7 +421,7 @@ function compareHtml(t) {
   if (entries.length < 2) return '';
   return `<span class="compare">${entries.map(([m, v], i) => `<span class="${m === t.mode ? 'cur' : ''}${i === 0 ? ' best' : ''}">${MODE_WORD[m] || m} ${eur0(v)}</span>`).join('')}</span>`;
 }
-function tripHtml(t, i, multiWin) {
+function tripHtml(t, i, multiWin, prefix = '') {
   const rides = t.mode === 'car' ? t.legs.filter((l) => l.kind === 'drive') : t.legs.filter((l) => RIDES.has(l.kind) && l.fromCode);
   const out = rides[0];
   const back = rides.at(-1);
@@ -423,7 +433,7 @@ function tripHtml(t, i, multiWin) {
     : `<b class="m-${l.kind}">${MODE_WORD[l.kind] || l.kind}</b>${dayOf(l.dep, l.tzFrom)} ${timeOf(l.dep, l.tzFrom, l.approxTime)} · ${esc(shortPlace(l.fromCode, l.from))} → ${esc(shortPlace(l.toCode, l.to))}`);
   const km = kmOf(t.out.place);
   return `<article class="trip">
-    <button type="button" class="trip-head" aria-expanded="false" aria-controls="legs-${i}" id="trip-${i}">
+    <button type="button" class="trip-head" aria-expanded="false" aria-controls="${prefix}legs-${i}" id="${prefix}trip-${i}">
       <span class="dest"><span class="city">${esc(cityDe(t.city))}</span><span class="country">${esc(countryDe(t.countryCode, t.country))}${km ? ` · ${km.toLocaleString('de-AT')} km` : ''}</span></span>
       <span class="price"><span class="total">${eur(t.total)}</span>${people}</span>
       <span class="when">
@@ -442,7 +452,7 @@ function tripHtml(t, i, multiWin) {
         <span class="open-hint">Antippen für alle Schritte und Buchungslinks</span>
       </span>
     </button>
-    <div class="trip-detail" id="legs-${i}" hidden>
+    <div class="trip-detail" id="${prefix}legs-${i}" hidden>
       <ol class="legs">${t.legs.map(legHtml).join('')}</ol>
       ${stayLinksHtml(t.stay)}
       ${alts}
@@ -690,6 +700,9 @@ function renderControls() {
   $('when-days').hidden = state.when !== 'days';
   for (const b of document.querySelectorAll('[data-km]')) b.setAttribute('aria-pressed', String(Number(b.dataset.km) === Number(state.minKm)));
   $('km-chips').hidden = !!state.dest.trim();
+  const dw = $('dest-when');
+  dw.hidden = !state.dest.trim();
+  if (state.dest.trim()) dw.innerHTML = `Wann ist ${esc(state.dest.trim())} am billigsten? ›`;
   $('who-sum').textContent = whoSummary();
   const n = tripNights();
   $('days-sum').textContent = `${n ? nightsWord(n) : 'Tagesausflug'}: hin ${dayLabel(state.daysFrom)}, zurück ${dayLabel(state.daysTo)}${Number(state.flex) ? `, oder bis ${state.flex} Tag${Number(state.flex) > 1 ? 'e' : ''} früher oder später` : ''}`;
@@ -718,8 +731,9 @@ function syncForm() {
 function showTab(tab) {
   state.tab = tab;
   for (const b of document.querySelectorAll('[data-tab]')) b.setAttribute('aria-selected', String(b.dataset.tab === tab));
-  for (const id of ['trips', 'cheap', 'beds']) $(`view-${id}`).hidden = id !== tab;
+  for (const id of ['trips', 'find', 'cheap', 'beds']) $(`view-${id}`).hidden = id !== tab;
   save();
+  if (tab === 'find') computeFind();
 }
 
 // ---------------------------------------------------------------- events
@@ -745,6 +759,7 @@ document.addEventListener('input', (e) => {
   else if (id === 'bags') state.bags = el.value;
   else if (id === 'min-stay') state.minStay = Number(el.value);
   else if (id === 'dest') { state.dest = el.value; clearTimeout(typing); typing = setTimeout(compute, 450); renderControls(); return; }
+  else if (id === 'find-dest') { state.findDest = el.value; state.findSel = null; clearTimeout(typing); typing = setTimeout(computeFind, 450); return; }
   else if (id === 'max-pp') { state.maxPP = el.value; clearTimeout(typing); typing = setTimeout(compute, 450); return; }
   else if (id === 'sort') { state.sort = el.value; save(); renderResults(selectedWindows()); return; }
   else if (el.dataset.card) {
@@ -776,6 +791,14 @@ document.addEventListener('click', (e) => {
   const hit = (sel) => t.closest(sel);
   let x;
   if ((x = hit('[data-tab]'))) { showTab(x.dataset.tab); window.scrollTo({ top: 0 }); return; }
+  if ((x = hit('#dest-when'))) { state.findDest = state.dest.trim(); state.findSel = null; $('find-dest').value = state.findDest; showTab('find'); window.scrollTo({ top: 0 }); return; }
+  if ((x = hit('[data-len]'))) { state.findLen = x.dataset.len; state.findSel = null; computeFind(); return; }
+  if ((x = hit('[data-quick]'))) { state.findDest = x.dataset.quick; state.findSel = null; $('find-dest').value = state.findDest; computeFind(); return; }
+  if ((x = hit('[data-find]'))) {
+    state.findSel = x.dataset.find; save(); renderFind();
+    $('find-trips-wrap').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    return;
+  }
   if ((x = hit('[data-when]'))) { state.when = x.dataset.when; lastSelKey = null; compute(); return; }
   if ((x = hit('[data-week]'))) { state.week = x.dataset.week; compute(); return; }
   if ((x = hit('[data-day]'))) {
@@ -811,6 +834,169 @@ document.addEventListener('click', (e) => {
   if ((x = hit('[data-deal-filter]'))) { dealFilter = x.dataset.dealFilter; renderCheap(); return; }
   if ((x = hit('[data-stay-date]'))) { state.stayDate = x.dataset.stayDate; save(); renderBeds(); }
 });
+
+// ---------------------------------------------------------------- tab: when is it cheapest? (one place, every date)
+const QUICK = ['London', 'Barcelona', 'Rom', 'Mailand', 'Paris', 'Lissabon', 'Neapel', 'Alicante', 'Malta', 'Italien', 'Spanien', 'Griechenland', 'Portugal', 'Kroatien'];
+const FIND_NIGHTS = { '2-3': [2, 3], '4-5': [4, 5], 7: [7] };
+function findQuery() {
+  const q = baseQuery();
+  return { ...q, car: state.car, ground: state.ground, destinations: resolveDest(state.findDest), minKm: 0, maxPrice: null, limit: 12, perCity: 2 };
+}
+/** Every trip window for the chosen length; `group` = the start day (or the weekend). */
+function findWindows() {
+  if (state.findLen === 'we') return weekends().map((w) => ({ ...w, group: w.key }));
+  const nights = FIND_NIGHTS[state.findLen] || FIND_NIGHTS['2-3'];
+  const out = [];
+  for (let d = today(); d <= LAST_DATA; d = addDays(d, 1)) {
+    for (const n of nights) { const w = dayWindow(d, addDays(d, n)); if (w) out.push({ ...w, group: d }); }
+  }
+  return out;
+}
+let findKey = '';
+let findCache = new Map();
+let findJob = 0;
+let findProgress = { done: 0, total: 0 };
+function findPlan(q, w) {
+  const k = winKey(w);
+  let r = findCache.get(k);
+  if (!r) {
+    const win = { leaveAfter: w.leaveAfter, leaveBefore: w.leaveBefore, backBy: w.backBy };
+    if (w.returnAfter) win.returnAfter = w.returnAfter;
+    if (w.minStayHours != null) win.minStayHours = w.minStayHours;
+    try { r = plan(SNAP, { ...q, ...win }).trips; } catch (e) { console.error(e); r = []; }
+    for (const t of r) t.win = w;
+    findCache.set(k, r);
+  }
+  return r;
+}
+function computeFind() {
+  save();
+  for (const b of document.querySelectorAll('[data-len]')) b.setAttribute('aria-pressed', String(b.dataset.len === state.findLen));
+  const avail = QUICK.filter((c) => DEST.index.has(norm(c)));
+  $('find-quick').innerHTML = avail.slice(0, 12).map((c) => `<button type="button" class="chip" data-quick="${esc(c)}" aria-pressed="${norm(c) === norm(state.findDest)}">${esc(c)}</button>`).join('');
+  const my = ++findJob;
+  if (!state.findDest.trim()) {
+    $('find-status').textContent = 'Tipp: mehrere mit Komma, z. B. „Spanien, Portugal“. Die App rechnet jeden möglichen Termin durch, mit deinen Einstellungen bei „Wer & wie?“.';
+    for (const id of ['find-best-wrap', 'find-cal-wrap', 'find-trips-wrap']) $(id).hidden = true;
+    return;
+  }
+  const unknown = unknownDest(state.findDest);
+  if (unknown.length) {
+    $('find-status').textContent = `„${unknown.join(', ')}“ kenne ich nicht. Probier den deutschen oder englischen Namen, ein Land oder einen Flughafencode.`;
+    for (const id of ['find-best-wrap', 'find-cal-wrap', 'find-trips-wrap']) $(id).hidden = true;
+    return;
+  }
+  const q = findQuery();
+  const key = JSON.stringify(q);
+  if (key !== findKey) { findKey = key; findCache = new Map(); }
+  const wins = findWindows();
+  findProgress = { done: wins.filter((w) => findCache.has(winKey(w))).length, total: wins.length };
+  renderFind();
+  let i = 0;
+  let painted = 0;
+  const tick = () => {
+    if (my !== findJob) return;
+    const t0 = performance.now();
+    while (i < wins.length && performance.now() - t0 < 30) { findPlan(q, wins[i]); i++; }
+    findProgress.done = i;
+    if (i < wins.length) { if (++painted % 3 === 0) renderFind(); setTimeout(tick, 0); return; }
+    renderFind();
+  };
+  setTimeout(tick, 0);
+}
+/** Best trip per start day (or weekend): undefined = still computing, null = nothing found. */
+function findGroups() {
+  const groups = new Map();
+  for (const w of findWindows()) {
+    if (!groups.has(w.group)) groups.set(w.group, { key: w.group, w, best: null, pending: 0, wins: [] });
+    const g = groups.get(w.group);
+    g.wins.push(w);
+    const r = findCache.get(winKey(w));
+    if (r === undefined) { g.pending++; continue; }
+    const t = r[0];
+    if (t && (!g.best || t.total < g.best.total)) { g.best = t; g.w = w; }
+  }
+  for (const g of groups.values()) if (!g.best && g.pending) g.best = undefined;
+  return groups;
+}
+function renderFind() {
+  const groups = findGroups();
+  const list = [...groups.values()];
+  const known = list.filter((g) => g.best);
+  const pp = state.travelers.length > 1;
+  const price = (t) => `${t.estimatedShare > 0.5 ? '≈' : ''}${eur0(pp ? t.perPerson : t.total)}`;
+  const busy = findProgress.done < findProgress.total;
+  const where = state.findDest.trim();
+  $('find-status').textContent = busy
+    ? `Rechne alle Termine nach ${where} durch… ${findProgress.done} von ${findProgress.total}`
+    : known.length ? `${known.length} mögliche Termine nach ${where} gefunden${pp ? ', Preise pro Person' : ''}. Preise bis ${dayLabel(LAST_DATA)}`
+      : `Keine Verbindung nach ${where} in den Preisdaten (bis ${dayLabel(LAST_DATA)}). Probier eine andere Dauer oder bei „Wer & wie?“ mehr Möglichkeiten.`;
+  if (!known.length) { for (const id of ['find-best-wrap', 'find-cal-wrap', 'find-trips-wrap']) $(id).hidden = true; return; }
+  const totals = known.map((g) => g.best.total);
+  const min = Math.min(...totals);
+  const max = Math.max(...totals);
+  const level = (v) => (v <= min + (max - min) * 0.12 || v <= min * 1.08 ? 'l1' : v <= min + (max - min) * 0.4 ? 'l2' : 'l3');
+  if (!busy && (!state.findSel || !groups.get(state.findSel)?.best)) state.findSel = [...known].sort((a, b) => a.best.total - b.best.total)[0].key;
+  const label = (g) => (g.w.kind === 'weekend' ? `${g.w.dows} ${g.w.title}` : `${dayLabel(g.w.start)} – ${dayLabel(g.w.end)}`);
+
+  // top 5
+  const top = [...known].sort((a, b) => a.best.total - b.best.total).slice(0, 5);
+  $('find-best-wrap').hidden = false;
+  $('find-best').innerHTML = top.map((g, i) => `<button type="button" class="row find-row${g.key === state.findSel ? ' sel' : ''}" data-find="${g.key}">
+      <span class="rank">${i + 1}</span>
+      <span class="when-l"><b>${esc(label(g))}</b><small>${esc(cityDe(g.best.city))} · ${modeWord(g.best)}${g.w.kind === 'days' ? ` · ${nightsWord(g.w.nights)}` : ''}</small></span>
+      <span class="price-pill">${price(g.best)}</span></button>`).join('');
+
+  // calendar (start days) or weekend bars
+  $('find-cal-wrap').hidden = false;
+  if (state.findLen === 'we') {
+    $('find-cal-title').textContent = 'Alle Wochenenden';
+    $('find-cal').innerHTML = `<div class="wkrows">${list.map((g) => {
+      const b = g.best;
+      const width = b ? Math.max(8, Math.round((b.total / max) * 100)) : 0;
+      return `<button type="button" class="wkrow${g.key === state.findSel ? ' sel' : ''}" data-find="${g.key}" ${b ? '' : 'disabled'}>
+        <span><b>${esc(g.w.title)}</b><small>${b ? `${esc(cityDe(b.city))} · ${modeWord(b)}` : b === null ? 'nichts' : '…'}</small></span>
+        <span class="bar"><i class="${b ? level(b.total) : ''}" style="width:${width}%"></i></span>
+        <span class="amt">${b ? price(b) : b === null ? '–' : '…'}</span></button>`;
+    }).join('')}</div>`;
+  } else {
+    const nights = FIND_NIGHTS[state.findLen] || [];
+    $('find-cal-title').textContent = `Preis je Starttag (${nights.map((n) => n).join('–')} Nächte)`;
+    const byDay = new Map(list.map((g) => [g.key, g]));
+    const months = [];
+    for (let d = `${today().slice(0, 7)}-01`; d <= LAST_DATA; d = addDays(`${d.slice(0, 7)}-01`, 32).slice(0, 7) + '-01') months.push(d);
+    const MONTH_LONG = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+    $('find-cal').innerHTML = months.map((m) => {
+      const first = m;
+      const lead = (dowOf(first) + 6) % 7; // Monday first
+      const cells = [];
+      for (let k = 0; k < lead; k++) cells.push('<span class="day blank" aria-hidden="true"></span>');
+      for (let d = first; d.slice(0, 7) === m.slice(0, 7); d = addDays(d, 1)) {
+        const g = byDay.get(d);
+        const num = `<span class="d">${+d.slice(8, 10)}</span>`;
+        if (!g) { cells.push(`<span class="day blank">${num}</span>`); continue; }
+        const b = g.best;
+        if (b === undefined) { cells.push(`<span class="day wait">${num}<span class="p">…</span></span>`); continue; }
+        if (b === null) { cells.push(`<span class="day na">${num}<span class="p">–</span></span>`); continue; }
+        const cls = `${level(b.total)}${b.total === min ? ' best' : ''}${g.key === state.findSel ? ' sel' : ''}`;
+        cells.push(`<button type="button" class="day ${cls}" data-find="${g.key}" aria-label="${esc(`${dayLabel(d)}: ab ${price(b)} nach ${cityDe(b.city)}`)}">${num}<span class="p">${price(b)}</span></button>`);
+      }
+      return `<div class="month"><p class="month-name">${MONTH_LONG[+m.slice(5, 7) - 1]} ${m.slice(0, 4)}</p>
+        <div class="cal">${['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((x) => `<span class="dow">${x}</span>`).join('')}${cells.join('')}</div></div>`;
+    }).join('');
+  }
+
+  // trips for the chosen date
+  const sel = groups.get(state.findSel);
+  if (!sel || !sel.best) { $('find-trips-wrap').hidden = true; return; }
+  const seen = new Set();
+  const trips = sel.wins.flatMap((w) => findCache.get(winKey(w)) || []).sort((a, b) => a.total - b.total)
+    .filter((t) => { const k = `${t.id}|${t.win.key}`; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 4);
+  for (const t of trips) if (t.stay === undefined) t.stay = stayFor(t);
+  $('find-trips-wrap').hidden = false;
+  $('find-trips-title').textContent = label(sel);
+  $('find-trips').innerHTML = trips.map((t, i) => tripHtml(t, i, sel.wins.length > 1, 'f')).join('');
+}
 
 // ---------------------------------------------------------------- tab: price mistakes + deals
 let dealFilter = 'top';
@@ -911,6 +1097,7 @@ $('leave').innerHTML = Object.entries(LEAVE).map(([k, b]) => `<option value="${k
 $('back-by').innerHTML = Object.entries(BACK).map(([k, b]) => `<option value="${k}">${esc(b.label)}</option>`).join('');
 $('dest-list').innerHTML = DEST.labels.map((l) => `<option value="${esc(l)}">`).join('');
 $('home-name').textContent = 'Salzburg';
+$('find-dest').value = state.findDest;
 syncForm();
 showTab(state.tab || 'trips');
 renderStatus();

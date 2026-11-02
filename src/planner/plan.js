@@ -100,6 +100,14 @@ export function indexSnapshot(snapshot, data = STATIC_DATA) {
   return idx;
 }
 
+/** Index of the first ride departing at or after `t` (lists are sorted by departure). */
+function firstAtOrAfter(list, t) {
+  let lo = 0;
+  let hi = list.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (list[mid].dep < t) lo = mid + 1; else hi = mid; }
+  return lo;
+}
+
 export function cityOf(code, idx) {
   return idx.metroOf.get(code) || idx.places[code]?.city || code;
 }
@@ -173,8 +181,9 @@ export function plan(snapshot, query, data = STATIC_DATA) {
   const byFrom = new Map(idx.byFrom);
   if (q.ground && data.TRAIN_ROUTES) {
     const extra = estimatedTrains(data, addDays(q.leaveAfter.slice(0, 10), -1), q.backBy.slice(0, 10));
-    for (const r of extra) byFrom.set(r.from, [...(byFrom.get(r.from) || []), r]);
-    for (const k of new Set(extra.map((r) => r.from))) byFrom.get(k).sort((a, b) => a.dep - b.dep);
+    const add = new Map();
+    for (const r of extra) { if (!add.has(r.from)) add.set(r.from, []); add.get(r.from).push(r); }
+    for (const [k, list] of add) byFrom.set(k, [...(byFrom.get(k) || []), ...list].sort((x, y) => x.dep - y.dep));
   }
   if (!q.ground) for (const [k, list] of byFrom) byFrom.set(k, list.filter((r) => r.mode === 'flight'));
 
@@ -344,9 +353,11 @@ export function plan(snapshot, query, data = STATIC_DATA) {
 
   const outs = [];
   for (const hub of hubs) {
-    for (const f of byFrom.get(hub) || []) {
+    const list = byFrom.get(hub) || [];
+    for (let i = firstAtOrAfter(list, leaveAfter); i < list.length; i++) {
+      const f = list[i];
+      if (f.dep > leaveBefore + 10 * 60) break; // sorted by departure
       if (hubSet.has(f.to)) continue;
-      if (f.dep < leaveAfter || f.dep > leaveBefore + 10 * 60) continue;
       if (!matchesDestination(f.to, q.destinations, idx) || !farEnough(f.to)) continue;
       const o = bestOut(hub, f.dep);
       if (!o.size) continue;

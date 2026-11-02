@@ -19,8 +19,24 @@ function dtf(tz) {
   return f;
 }
 
+// Offsets only change at DST switches, which always happen on a quarter hour, so one
+// lookup per time zone and 15-minute block is exact (Intl is slow, this runs a lot).
+const offsetCache = new Map();
+const QUARTER = 15 * 60000;
+
 /** Offset of `tz` from UTC at instant `utcMs`, in minutes (Vienna winter = +60). */
 export function tzOffsetMin(utcMs, tz) {
+  const key = `${tz}|${Math.floor(utcMs / QUARTER)}`;
+  let off = offsetCache.get(key);
+  if (off === undefined) {
+    off = rawOffsetMin(Math.floor(utcMs / QUARTER) * QUARTER, tz);
+    if (offsetCache.size > 200000) offsetCache.clear();
+    offsetCache.set(key, off);
+  }
+  return off;
+}
+
+function rawOffsetMin(utcMs, tz) {
   const parts = {};
   for (const p of dtf(tz).formatToParts(new Date(utcMs))) parts[p.type] = p.value;
   const asUtc = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour % 24, +parts.minute, +parts.second);
